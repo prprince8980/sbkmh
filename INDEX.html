@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Shop - Horizontal Cards</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Client from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            /* Brand Colors */
+            --primary: #4f46e5; /* Indigo 600 */
+            --primary-hover: #4338ca; /* Indigo 700 */
+            --primary-light: #e0e7ff; /* Indigo 100 */
+            
+            /* Neutral Colors (Slate) */
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a; /* Slate 900 */
+            --text-muted: #64748b; /* Slate 500 */
+            --border: #e2e8f0;
+
+            /* Status Colors */
+            --success: #10b981;
+            --error: #ef4444;
+
+            /* Shadows & Radius */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-glow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 12px;
+            
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* NAVIGATION */
+        nav {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1400px; /* Increased max width to fit 4 cards comfortably */
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--primary);
+        }
+
+        .hidden { display: none !important; }
+
+        /* SLIDER */
+        .slider {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+            background: #0f172a;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide.active { opacity: 1; }
+
+        .slide::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.8));
+        }
+
+        .slide-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            max-width: 800px;
+        }
+
+        .slide-content h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.05em;
+        }
+
+        .slide-content p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            color: #f1f5f9;
+        }
+
+        .btn-cta {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 1.75rem;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-cta:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        /* PRODUCTS - HORIZONTAL SCROLL (4 cards per line) */
+        .container {
+            max-width: 1400px; /* Wider container to fit cards */
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+            flex: 1;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.025em;
+        }
+
+        .product-grid {
+            display: flex;
+            flex-direction: row; /* Horizontal layout */
+            overflow-x: auto; /* Allow horizontal scroll */
+            gap: 1.5rem; /* Space between cards */
+            padding: 1rem 0.5rem 2.5rem 0.5rem; /* Bottom padding for scrollbar */
+            
+            /* Scroll Snap for smooth feel */
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            
+            /* Custom Scrollbar Styling */
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        
+        /* Custom Webkit Scrollbar */
+        .product-grid::-webkit-scrollbar {
+            height: 8px;
+        }
+        .product-grid::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .product-grid::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        .product-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            
+            /* Fixed dimensions to ensure 4 cards fit */
+            min-width: 260px; /* 260px * 4 = 1040px + gaps = fits most laptops */
+            max-width: 260px;
+            flex-shrink: 0; /* CRITICAL: Stops cards from shrinking */
+            scroll-snap-align: start; /* Snaps card to start */
+        }
+
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-light);
+        }
+
+        .product-img {
+            width: 100%;
+            height: 200px; /* Standard aspect ratio for fixed width */
+            object-fit: cover;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .product-info {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .product-title {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .product-price {
+            color: var(--primary);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .btn-buy {
+            margin-top: auto;
+            width: 100%;
+            padding: 0.5rem;
+            background-color: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-main);
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .btn-buy:hover {
+            background-color: var(--text-main);
+            color: white;
+            border-color: var(--text-main);
+        }
+
+        /* FOOTER */
+        footer {
+            background-color: var(--text-main);
+            color: #94a3b8;
+            padding: 3rem 1.5rem;
+            margin-top: auto;
+            text-align: center;
+        }
+
+        /* MODALS & FORMS */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-surface);
+            padding: 2.5rem;
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: scale(0.95);
+            transition: var(--transition);
+        }
+
+        .modal-overlay.open .modal-content {
+            transform: scale(1);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            background: none;
+            border: none;
+            transition: var(--transition);
+        }
+        
+        .close-modal:hover { color: var(--text-main); }
+        
+        .form-group { margin-bottom: 1.25rem; }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text-main);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: var(--transition);
+            background-color: #fcfcfc;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+            background-color: #fff;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 0.875rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .btn-submit:hover { background-color: var(--primary-hover); }
+        .btn-submit:active { transform: scale(0.98); }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            margin-top: 0.5rem;
+        }
+        
+        /* Auth Tabs */
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .auth-tab:hover { color: var(--primary); }
+
+        .auth-tab.active {
+            border-bottom-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* TABLE */
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .order-table th, .order-table td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .order-table th {
+            background-color: #f8fafc;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .order-table tr:hover { background-color: #fcfcfc; }
+
+        /* TOAST */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 300px;
+            padding: 1rem 1.25rem;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            border-left: 4px solid var(--primary);
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* RESPONSIVE TWEAKS */
+        @media (max-width: 768px) {
+            .nav-container, .container { max-width: 100%; }
+            .slide-content h2 { font-size: 2rem; }
+            .nav-links { gap: 1rem; }
+            /* On mobile, horizontal scroll still works, just fit less or fit 2 small ones */
+            .product-card { min-width: 200px; max-width: 200px; }
+            .modal-content { width: 95%; padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV BAR -->
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <span>⚡</span> ModernShop
+            </a>
+            <ul class="nav-links">
+                <li><a href="#">Home</a></li>
+                <li><a href="#products">Products</a></li>
+                <li><a id="historyLink" onclick="handleHistoryClick()">Order History</a></li>
+                <li id="logoutContainer"><a id="logoutLink" onclick="handleLogout()">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- SLIDER -->
+    <section class="slider" id="home">
+        <div class="slide active" style="background-image: url('https://picsum.photos/seed/tech1/1600/900');">
+            <div class="slide-content">
+                <h2>Next Gen Tech</h2>
+                <p>Experience the future of gadgetry with our premium collection.</p>
+                <button class="btn-cta" onclick="document.getElementById('products').scrollIntoView({behavior: 'smooth'})">Shop Now</button>
+            </div>
+        </div>
+        <div class="slide" style="background-image: url('https://picsum.photos/seed/setup/1600/900');">
+            <div class="slide-content">
+                <h2>Super Sale</h2>
+                <p>Upgrade your setup for less. Limited time offers.</p>
+                <button class="btn-cta" onclick="document.getElementById('products').scrollIntoView({behavior: 'smooth'})">View Deals</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRODUCTS (Horizontal Scroll) -->
+    <div class="container" id="products">
+        <h2 class="section-title">Curated Products</h2>
+        <div class="product-grid" id="productGrid">
+            <!-- Products injected via JS -->
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">ModernShop</p>
+            <p style="font-size: 0.875rem;">&copy; 2023 ModernShop Inc. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- AUTH MODAL -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeAuthModal()">&times;</button>
+            <h3 style="margin-bottom: 1.5rem; text-align: center; font-size: 1.5rem;">Welcome</h3>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Login</div>
+                <div class="auth-tab" id="tabSignup" onclick="switchAuthTab('signup')">Sign Up</div>
+            </div>
+            <!-- LOGIN FORM -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="loginEmail" class="form-control" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-submit">Sign In</button>
+            </form>
+            <!-- SIGNUP FORM -->
+            <form id="signupForm" class="hidden">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="signupName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="signupEmail" class="form-control" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="signupPhone" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signupPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="signupConfirm" class="form-control" required>
+                </div>
+                <button type="submit" class="btn-submit">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ORDER MODAL -->
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal-content">
+            <button class="close-modal" id="closeOrderModal">&times;</button>
+            <h3 style="margin-bottom: 0.5rem;">Checkout</h3>
+            <div id="modalProductSummary" style="margin-bottom:1.5rem; padding:1rem; background:#f8fafc; border-radius:var(--radius-md); border:1px solid var(--border); display:flex; align-items:center; gap:1rem;"></div>
+            <form id="orderForm">
+                <input type="hidden" id="productName">
+                
+                <div class="form-group">
+                    <label for="orderEmail">Email Address <span style="color:red">*</span></label>
+                    <input type="email" id="orderEmail" class="form-control" placeholder="Enter your email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="customerName">Full Name</label>
+                    <input type="text" id="customerName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number</label>
+                    <input type="tel" id="phoneNumber" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="quantity" class="form-control" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select id="paymentMethod" class="form-control">
+                        <option value="Cash on Delivery">Cash on Delivery</option>
+                        <option value="Online">Credit Card / Online</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit" id="submitBtn">Confirm Order</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HISTORY MODAL -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <button class="close-modal" onclick="document.getElementById('historyModal').classList.remove('open')">&times;</button>
+            <h3 style="margin-bottom: 1.5rem;">Order History</h3>
+            <div id="historyContainer" style="overflow-x:auto;"></div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // ============================================================
+        // CONFIGURATION: PLEASE UPDATE THESE KEYS FROM SUPABASE DASHBOARD
+        // ============================================================
+        const SUPABASE_URL = 'https://rkjavjrfxtaastaouedq.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_FsxRVm4qjVcRs78cKHLhAw_4yxLDlfi'; 
+
+        let db;
+        let dbConnected = false;
+
+        // SAFETY CHECK: Initialize Supabase only if library loaded
+        try {
+            if (window.supabase) {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                dbConnected = true;
+            } else {
+                console.error("Supabase library not loaded.");
+            }
+        } catch (e) {
+            console.error("Supabase Init Error:", e);
+        }
+
+        // STATE
+        let currentUser = null; 
+        
+        // MOCK PRODUCTS
+        const products = [
+            { id: 1, name: "Wireless Noise Cancelling Headphones", price: 299, img: "https://picsum.photos/seed/headphone/400/300" },
+            { id: 2, name: "Series 7 Smart Watch", price: 399, img: "https://picsum.photos/seed/watch/400/300" },
+            { id: 3, name: "Ultra-Running Shoes", price: 120, img: "https://picsum.photos/seed/shoes/400/300" },
+            { id: 4, name: "Travel Backpack", price: 85, img: "https://picsum.photos/seed/bag/400/300" },
+            { id: 5, name: "Aviator Sunglasses", price: 150, img: "https://picsum.photos/seed/glasses/400/300" },
+            { id: 6, name: "50mm Prime Lens", price: 199, img: "https://picsum.photos/seed/lens/400/300" },
+            { id: 7, name: "Pro Gaming Mouse", price: 75, img: "https://picsum.photos/seed/mouse/400/300" },
+            { id: 8, name: "Mechanical Keyboard", price: 140, img: "https://picsum.photos/seed/keyboard/400/300" },
+            { id: 9, name: "USB-C Hub", price: 45, img: "https://picsum.photos/seed/hub/400/300" },
+            { id: 10, name: "Webcam 4K", price: 110, img: "https://picsum.photos/seed/cam/400/300" },
+            { id: 11, name: "Desk Lamp", price: 35, img: "https://picsum.photos/seed/lamp/400/300" },
+            { id: 12, name: "Monitor Stand", price: 55, img: "https://picsum.photos/seed/stand/400/300" }
+        ];
+
+        // --- INIT ---
+        function init() {
+            renderProducts();
+            startSlider();
+            checkLoginStatus();
+            
+            if(!dbConnected) {
+                showToast("Warning: Database not connected. Check Keys.");
+            }
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderProducts() {
+            const grid = document.getElementById('productGrid');
+            if(!grid) return; // Safety
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <img src="${p.img}" class="product-img" alt="${p.name}">
+                    <div class="product-info">
+                        <h3 class="product-title">${p.name}</h3>
+                        <div class="product-price">$${p.price}</div>
+                        <button class="btn-buy" onclick="openOrderModal(${p.id})">Order Now</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function startSlider() {
+            let idx = 0;
+            const slides = document.querySelectorAll('.slide');
+            if(slides.length === 0) return;
+            setInterval(() => {
+                slides[idx].classList.remove('active');
+                idx = (idx + 1) % slides.length;
+                slides[idx].classList.add('active');
+            }, 5000);
+        }
+
+        // --- AUTH LOGIC ---
+        
+        function checkLoginStatus() {
+            try {
+                const savedUser = localStorage.getItem('shopUser');
+                if (savedUser) {
+                    currentUser = JSON.parse(savedUser);
+                    updateNav(true);
+                } else {
+                    updateNav(false);
+                }
+            } catch (e) {
+                console.error("LocalStorage error", e);
+                updateNav(false);
+            }
+        }
+
+        function updateNav(isLoggedIn) {
+            const historyLink = document.getElementById('historyLink');
+            const logoutLink = document.getElementById('logoutLink');
+            if(!historyLink || !logoutLink) return;
+
+            if (isLoggedIn) {
+                historyLink.textContent = "My Orders";
+                logoutLink.classList.remove('hidden');
+            } else {
+                historyLink.textContent = "Order History (Login)";
+                logoutLink.classList.add('hidden');
+            }
+        }
+
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabSignup = document.getElementById('tabSignup');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                tabLogin.classList.add('active');
+                tabSignup.classList.remove('active');
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                tabLogin.classList.remove('active');
+                tabSignup.classList.add('active');
+            }
+        }
+
+        // Signup
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!dbConnected) return showToast("Database connection failed.");
+
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const phone = document.getElementById('signupPhone').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirm = document.getElementById('signupConfirm').value;
+
+            if (password !== confirm) {
+                showToast("Passwords do not match");
+                return;
+            }
+
+            const { error } = await db.from('users').insert([{ 
+                full_name: name, 
+                email: email, 
+                phone: phone, 
+                password: password 
+            }]);
+
+            if (error) {
+                showToast("Error creating account: " + error.message);
+            } else {
+                showToast("Account created! Please login.");
+                switchAuthTab('login');
+                document.getElementById('signupForm').reset();
+            }
+        });
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!dbConnected) return showToast("Database connection failed.");
+
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const { data, error } = await db
+                .from('users')
+                .select('*')
+                .eq('email', email)
+                .eq('password', password)
+                .single();
+
+            if (error || !data) {
+                showToast("Invalid email or password");
+            } else {
+                currentUser = data;
+                localStorage.setItem('shopUser', JSON.stringify(currentUser));
+                closeAuthModal();
+                updateNav(true);
+                showToast("Welcome back, " + currentUser.full_name);
+                document.getElementById('loginForm').reset();
+            }
+        });
+
+        function handleLogout() {
+            localStorage.removeItem('shopUser');
+            currentUser = null;
+            updateNav(false);
+            showToast("Logged out");
+        }
+
+        // --- ORDER LOGIC ---
+        
+        window.openOrderModal = function(id) {
+            const product = products.find(p => p.id === id);
+            if(!product) return;
+
+            document.getElementById('productName').value = product.name;
+            
+            const summaryDiv = document.getElementById('modalProductSummary');
+            if(summaryDiv) {
+                summaryDiv.innerHTML = `
+                    <img src="${product.img}" style="width:50px;height:50px;object-fit:cover;border-radius:var(--radius-sm);">
+                    <div>
+                        <div style="font-weight:600;">${product.name}</div>
+                        <div style="color:var(--primary);font-weight:700;">$${product.price}</div>
+                    </div>
+                `;
+            }
+            
+            const emailInput = document.getElementById('orderEmail');
+            if (currentUser) {
+                emailInput.value = currentUser.email;
+                document.getElementById('customerName').value = currentUser.full_name;
+                document.getElementById('phoneNumber').value = currentUser.phone;
+            } else {
+                emailInput.value = ''; 
+                document.getElementById('customerName').value = '';
+                document.getElementById('phoneNumber').value = '';
+            }
+
+            const modal = document.getElementById('orderModal');
+            if(modal) modal.classList.add('open');
+        };
+
+        const closeOrderBtn = document.getElementById('closeOrderModal');
+        if(closeOrderBtn) {
+            closeOrderBtn.onclick = () => {
+                const modal = document.getElementById('orderModal');
+                const form = document.getElementById('orderForm');
+                if(modal) modal.classList.remove('open');
+                if(form) form.reset();
+            };
+        }
+
+        document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!dbConnected) return showToast("Cannot place order: Database offline.");
+
+            const btn = document.getElementById('submitBtn');
+            btn.textContent = "Processing...";
+            btn.disabled = true;
+
+            const orderData = {
+                customer_name: document.getElementById('customerName').value,
+                phone_number: document.getElementById('phoneNumber').value,
+                product_name: document.getElementById('productName').value,
+                quantity: parseInt(document.getElementById('quantity').value),
+                payment_method: document.getElementById('paymentMethod').value,
+                status: 'pending',
+                email: document.getElementById('orderEmail').value
+            };
+
+            const { error } = await db.from('orders').insert([orderData]);
+
+            if (error) {
+                showToast("Order Failed: " + error.message);
+            } else {
+                showToast("Order placed successfully!");
+                const modal = document.getElementById('orderModal');
+                const form = document.getElementById('orderForm');
+                if(modal) modal.classList.remove('open');
+                if(form) form.reset();
+            }
+
+            btn.textContent = "Confirm Order";
+            btn.disabled = false;
+        });
+
+        // --- HISTORY LOGIC ---
+        
+        function handleHistoryClick() {
+            if (currentUser) {
+                fetchOrderHistory();
+                const modal = document.getElementById('historyModal');
+                if(modal) modal.classList.add('open');
+            } else {
+                const modal = document.getElementById('authModal');
+                if(modal) modal.classList.add('open');
+            }
+        }
+
+        async function fetchOrderHistory() {
+            const container = document.getElementById('historyContainer');
+            if(!container) return;
+
+            container.innerHTML = '<p>Loading history...</p>';
+
+            if (!dbConnected) {
+                container.innerHTML = '<p style="color:red">Database connection failed.</p>';
+                return;
+            }
+
+            const { data, error } = await db
+                .from('orders')
+                .select('*')
+                .eq('email', currentUser.email)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = '<p style="color:red">Error loading history</p>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">No orders found yet.</div>';
+                return;
+            }
+
+            let html = `<table class="order-table"><thead><tr>
+                <th>Product</th>
+                <th>Date</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Status</th>
+            </tr></thead><tbody>`;
+
+            data.forEach(order => {
+                const date = new Date(order.created_at).toLocaleDateString();
+                html += `<tr>
+                    <td>${order.product_name}</td>
+                    <td>${date}</td>
+                    <td>${order.quantity}</td>
+                    <td>-</td>
+                    <td><span style="padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534;font-size:0.8rem;text-transform:uppercase;font-weight:700;">${order.status}</span></td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // --- UTILS ---
+        function closeAuthModal() {
+            const modal = document.getElementById('authModal');
+            if(modal) modal.classList.remove('open');
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            if(!container) return;
+            
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.innerText = msg;
+            container.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(100%)';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        // Wait for DOM
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
