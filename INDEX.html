@@ -250,7 +250,6 @@
                     <span class="auth-logo">ModernShop</span>
                     <h1 class="auth-title">Create Account</h1>
                     <div class="social-container">
-                        <!-- Google Button Only -->
                         <div id="google-signup-btn" class="hidden">
                             <div class="g_id_signin" 
                                  data-type="standard" 
@@ -268,7 +267,6 @@
                     <input type="text" id="signupName" class="auth-input" placeholder="Full Name" required />
                     <input type="tel" id="signupMobile" class="auth-input" placeholder="Mobile Number" required />
                     <input type="password" id="signupPassword" class="auth-input" placeholder="Password" required />
-                    <!-- New Re-Password Field -->
                     <input type="password" id="signupRePassword" class="auth-input" placeholder="Re-Password" required />
                     
                     <button type="submit" class="btn-auth" id="btnSignup">Sign Up</button>
@@ -285,7 +283,6 @@
                     <span class="auth-logo">ModernShop</span>
                     <h1 class="auth-title">Sign in</h1>
                     <div class="social-container">
-                         <!-- Google Button Only -->
                         <div id="google-signin-btn" class="hidden">
                             <div class="g_id_signin" 
                                  data-type="standard" 
@@ -300,7 +297,6 @@
                     </div>
                     <span class="auth-paragraph">or use your mobile account</span>
                     
-                    <!-- Changed Label to Mobile Number -->
                     <input type="tel" id="loginMobile" class="auth-input" placeholder="Mobile Number" required />
                     <input type="password" id="loginPassword" class="auth-input" placeholder="Password" required />
                     
@@ -439,7 +435,6 @@
         let db;
         let currentUser = null;
 
-        // Mock Product Data
         const products = [
             { id: 1, name: "Wireless Noise Cancelling Headphones", price: 299, img: "https://picsum.photos/seed/headphone/400/300" },
             { id: 2, name: "Series 7 Smart Watch", price: 399, img: "https://picsum.photos/seed/watch/400/300" },
@@ -504,6 +499,42 @@
             startSlider();
         }
 
+        // --- NEW HELPER: Check before Insert ---
+        async function addUserToLoginTableIfNotExists(user, provider, contactInfo) {
+            try {
+                // 1. Check if user_id already exists in 'login' table
+                const { data: existingRecords, error: checkError } = await db
+                    .from('login')
+                    .select('id')
+                    .eq('user_id', user.id);
+
+                if (checkError) {
+                    console.error("Error checking login table:", checkError);
+                    return;
+                }
+
+                // 2. Only insert if no record found (prevent duplicates)
+                if (!existingRecords || existingRecords.length === 0) {
+                    const { error: insertError } = await db.from('login').insert({
+                        user_id: user.id,
+                        name: user.user_metadata.full_name || contactInfo,
+                        email_or_mobile: contactInfo,
+                        provider: provider
+                    });
+
+                    if (insertError) {
+                        console.error("Error inserting to login table:", insertError);
+                    } else {
+                        console.log("Added new login record for user:", user.id);
+                    }
+                } else {
+                    console.log("User already exists in login table. Skipping insert.");
+                }
+            } catch (err) {
+                console.error("Unexpected error:", err);
+            }
+        }
+
         // --- UTILS ---
         function getVirtualEmail(mobile) {
             return `${mobile}@mobile.app`;
@@ -553,16 +584,14 @@
 
                 if (error) throw error;
 
-                // --- NEW: Add to 'login' table ---
+                // Use helper to prevent duplicates
                 if (data.user) {
-                    await db.from('login').insert({
-                        user_id: data.user.id,
-                        name: data.user.user_metadata.full_name || 'Google User',
-                        email_or_mobile: data.user.email,
-                        provider: 'google'
-                    });
+                    await addUserToLoginTableIfNotExists(
+                        data.user, 
+                        'google', 
+                        data.user.email
+                    );
                 }
-                // ---------------------------------
 
             } catch (err) {
                 console.error("Google Login Error:", err);
@@ -603,16 +632,14 @@
             } else {
                 // Login Success
                 
-                // --- NEW: Add to 'login' table ---
+                // Use helper to prevent duplicates
                 if (data.user) {
-                    await db.from('login').insert({
-                        user_id: data.user.id,
-                        name: data.user.user_metadata.full_name || mobile,
-                        email_or_mobile: mobile,
-                        provider: 'email'
-                    });
+                    await addUserToLoginTableIfNotExists(
+                        data.user, 
+                        'email', 
+                        mobile
+                    );
                 }
-                // ---------------------------------
 
                 showToast("Login Successful!", "success");
             }
