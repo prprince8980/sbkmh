@@ -12,7 +12,7 @@
     <!-- Supabase Client from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- GOOGLE IDENTITY SERVICES (Added from your request) -->
+    <!-- GOOGLE IDENTITY SERVICES (From your request) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
@@ -218,7 +218,7 @@
          ========================================= -->
     <div id="auth-screen">
         
-        <!-- GOOGLE ONLOAD DIV (From your code) -->
+        <!-- GOOGLE ONLOAD DIV (From your provided code) -->
         <div id="g_id_onload"
              data-client_id="652826869991-oi3pd0r0v4f79ovj1uceg8j174ue05ik.apps.googleusercontent.com"
              data-callback="handleCredentialResponse"
@@ -389,6 +389,7 @@
         // ============================================================
         // CONFIGURATION
         // ============================================================
+        // REPLACE THESE WITH YOUR ACTUAL KEYS FROM SUPABASE PROJECT SETTINGS
         const SUPABASE_URL = 'https://rkjavjrfxtaastaouedq.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_FsxRVm4qjVcRs78cKHLhAw_4yxLDlfi'; 
 
@@ -464,12 +465,12 @@
             document.getElementById('main-app').style.display = 'none';
         }
 
-        // --- GOOGLE LOGIN LOGIC (Updated with Supabase Integration) ---
+        // --- GOOGLE LOGIN LOGIC (Integrated with Supabase) ---
         async function handleCredentialResponse(response) {
             try {
                 showToast("Logging in with Google...");
 
-                // Send the Google Token to Supabase to create a session
+                // Send the Google ID Token to Supabase
                 const { data, error } = await db.auth.signInWithIdToken({
                     provider: 'google',
                     token: response.credential,
