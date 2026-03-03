@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Shop - Login Tracking</title>
+    <title>Modern Shop - Fixed Login Tracking</title>
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -499,39 +499,62 @@
             startSlider();
         }
 
-        // --- NEW HELPER: Check before Insert ---
+        // ============================================================
+        // FIX: ROBUST LOGIN TABLE TRACKER
+        // ============================================================
         async function addUserToLoginTableIfNotExists(user, provider, contactInfo) {
+            if (!user || !user.id) {
+                console.warn("User object or ID is missing, skipping DB insert.");
+                return;
+            }
+
             try {
-                // 1. Check if user_id already exists in 'login' table
-                const { data: existingRecords, error: checkError } = await db
+                console.log(`[DB Check] Checking for existing user: ${user.id}`);
+
+                // 1. Check if user_id already exists using maybeSingle() (cleaner)
+                const { data: existingUser, error: checkError } = await db
                     .from('login')
                     .select('id')
-                    .eq('user_id', user.id);
+                    .eq('user_id', user.id)
+                    .maybeSingle();
 
                 if (checkError) {
-                    console.error("Error checking login table:", checkError);
+                    console.error("[DB Error] Failed to check user existence:", checkError);
+                    // If we can't check, we stop here to avoid creating duplicates blindly
                     return;
                 }
 
-                // 2. Only insert if no record found (prevent duplicates)
-                if (!existingRecords || existingRecords.length === 0) {
-                    const { error: insertError } = await db.from('login').insert({
-                        user_id: user.id,
-                        name: user.user_metadata.full_name || contactInfo,
-                        email_or_mobile: contactInfo,
-                        provider: provider
-                    });
+                // 2. If user exists, stop completely.
+                if (existingUser) {
+                    console.log(`[DB Success] User ${user.id} already exists. Skipping insert.`);
+                    return;
+                }
 
-                    if (insertError) {
-                        console.error("Error inserting to login table:", insertError);
+                // 3. If not found, attempt insert
+                console.log(`[DB Insert] User not found. Creating new record for ${user.id}...`);
+                
+                const { error: insertError } = await db.from('login').insert([{
+                    user_id: user.id,
+                    name: user.user_metadata.full_name || contactInfo,
+                    email_or_mobile: contactInfo,
+                    provider: provider
+                }]);
+
+                if (insertError) {
+                    // 4. Handle Race Condition: If two tabs try to insert at once, 
+                    // one will fail with "duplicate key" (Postgres code 23505).
+                    // This is actually fine, it means the user exists now.
+                    if (insertError.code === '23505') {
+                        console.log("[DB Info] Duplicate detected (race condition). User exists now.");
                     } else {
-                        console.log("Added new login record for user:", user.id);
+                        console.error("[DB Error] Failed to insert user:", insertError);
+                        showToast("Could not save login details.", "error");
                     }
                 } else {
-                    console.log("User already exists in login table. Skipping insert.");
+                    console.log("[DB Success] New user added to login table.");
                 }
             } catch (err) {
-                console.error("Unexpected error:", err);
+                console.error("[Unexpected Error]", err);
             }
         }
 
@@ -584,7 +607,7 @@
 
                 if (error) throw error;
 
-                // Use helper to prevent duplicates
+                // Use the robust helper to prevent duplicates
                 if (data.user) {
                     await addUserToLoginTableIfNotExists(
                         data.user, 
@@ -632,7 +655,7 @@
             } else {
                 // Login Success
                 
-                // Use helper to prevent duplicates
+                // Use the robust helper to prevent duplicates
                 if (data.user) {
                     await addUserToLoginTableIfNotExists(
                         data.user, 
