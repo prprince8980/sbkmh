@@ -691,12 +691,7 @@
             });
 
             if (error) {
-                // Specific handling for Rate Limit error
-                if(error.message.includes("rate limit") || error.status === 429) {
-                    showToast("Too many attempts. Please wait 60 seconds.", "error");
-                } else {
-                    showToast("Error: " + error.message, "error");
-                }
+                showToast("Error: " + error.message, "error");
                 setLoading(btn, false, 'Sign Up');
             } else {
                 // Auth user created. Now add to our custom 'login' table.
