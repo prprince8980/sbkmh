@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Shop - Fixed Login Tracking</title>
+    <title>Modern Shop - Login Tracking</title>
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -500,61 +500,41 @@
         }
 
         // ============================================================
-        // FIX: ROBUST LOGIN TABLE TRACKER
+        // NEW LOGIC: CHECK AND INSERT INTO LOGIN TABLE
         // ============================================================
-        async function addUserToLoginTableIfNotExists(user, provider, contactInfo) {
-            if (!user || !user.id) {
-                console.warn("User object or ID is missing, skipping DB insert.");
-                return;
+
+        /**
+         * Checks if a user exists in the 'login' table by email_or_mobile.
+         * Returns the record if found, null otherwise.
+         */
+        async function checkUserExistsInLoginTable(contactInfo) {
+            const { data, error } = await db
+                .from('login')
+                .select('*')
+                .eq('email_or_mobile', contactInfo)
+                .maybeSingle(); // Returns null if not found instead of error
+
+            if (error) {
+                console.error("Error checking login table:", error);
+                return null;
             }
+            return data;
+        }
 
-            try {
-                console.log(`[DB Check] Checking for existing user: ${user.id}`);
+        /**
+         * Inserts a new record into the 'login' table.
+         */
+        async function insertUserToLoginTable(user, provider, contactInfo) {
+            const { error } = await db.from('login').insert({
+                user_id: user.id,
+                name: user.user_metadata.full_name || contactInfo,
+                email_or_mobile: contactInfo,
+                provider: provider
+            });
 
-                // 1. Check if user_id already exists using maybeSingle() (cleaner)
-                const { data: existingUser, error: checkError } = await db
-                    .from('login')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
-
-                if (checkError) {
-                    console.error("[DB Error] Failed to check user existence:", checkError);
-                    // If we can't check, we stop here to avoid creating duplicates blindly
-                    return;
-                }
-
-                // 2. If user exists, stop completely.
-                if (existingUser) {
-                    console.log(`[DB Success] User ${user.id} already exists. Skipping insert.`);
-                    return;
-                }
-
-                // 3. If not found, attempt insert
-                console.log(`[DB Insert] User not found. Creating new record for ${user.id}...`);
-                
-                const { error: insertError } = await db.from('login').insert([{
-                    user_id: user.id,
-                    name: user.user_metadata.full_name || contactInfo,
-                    email_or_mobile: contactInfo,
-                    provider: provider
-                }]);
-
-                if (insertError) {
-                    // 4. Handle Race Condition: If two tabs try to insert at once, 
-                    // one will fail with "duplicate key" (Postgres code 23505).
-                    // This is actually fine, it means the user exists now.
-                    if (insertError.code === '23505') {
-                        console.log("[DB Info] Duplicate detected (race condition). User exists now.");
-                    } else {
-                        console.error("[DB Error] Failed to insert user:", insertError);
-                        showToast("Could not save login details.", "error");
-                    }
-                } else {
-                    console.log("[DB Success] New user added to login table.");
-                }
-            } catch (err) {
-                console.error("[Unexpected Error]", err);
+            if (error) {
+                console.error("Error inserting to login table:", error);
+                throw error;
             }
         }
 
@@ -607,13 +587,18 @@
 
                 if (error) throw error;
 
-                // Use the robust helper to prevent duplicates
                 if (data.user) {
-                    await addUserToLoginTableIfNotExists(
-                        data.user, 
-                        'google', 
-                        data.user.email
-                    );
+                    const email = data.user.email;
+                    // Check if Google email is already in login table
+                    const existingUser = await checkUserExistsInLoginTable(email);
+                    
+                    if (!existingUser) {
+                        // If new, insert into login table
+                        await insertUserToLoginTable(data.user, 'google', email);
+                        console.log("Added Google user to login table.");
+                    } else {
+                        console.log("Google user already exists in login table.");
+                    }
                 }
 
             } catch (err) {
@@ -654,21 +639,17 @@
                 document.getElementById('signupName').focus();
             } else {
                 // Login Success
-                
-                // Use the robust helper to prevent duplicates
-                if (data.user) {
-                    await addUserToLoginTableIfNotExists(
-                        data.user, 
-                        'email', 
-                        mobile
-                    );
+                // Ensure record exists in login table (for safety)
+                const exists = await checkUserExistsInLoginTable(mobile);
+                if(!exists) {
+                    await insertUserToLoginTable(data.user, 'email', mobile);
                 }
 
                 showToast("Login Successful!", "success");
             }
         });
 
-        // --- SIGN UP LOGIC ---
+        // --- SIGN UP LOGIC (UPDATED WITH DUPLICATE CHECK) ---
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('signupName').value;
@@ -681,12 +662,24 @@
                 showToast("Passwords do not match!", "error");
                 return;
             }
-            
+
+            // ============================================================
+            // CRITICAL STEP: Check 'login' table for duplicate mobile
+            // ============================================================
+            const existingUser = await checkUserExistsInLoginTable(mobile);
+
+            if (existingUser) {
+                // User found in login table -> STOP and Show Error
+                showToast("Your account is already there", "error");
+                return; 
+            }
+            // ============================================================
+
             setLoading(btn, true, 'Creating Account...');
 
             const virtualEmail = getVirtualEmail(mobile);
 
-            const { error } = await db.auth.signUp({
+            const { data, error } = await db.auth.signUp({
                 email: virtualEmail,
                 password: password,
                 options: {
@@ -701,7 +694,17 @@
                 showToast("Error: " + error.message, "error");
                 setLoading(btn, false, 'Sign Up');
             } else {
-                showToast("Account created! Welcome.", "success");
+                // Auth user created. Now add to our custom 'login' table.
+                if(data.user) {
+                    try {
+                        await insertUserToLoginTable(data.user, 'email', mobile);
+                        showToast("Account created! Welcome.", "success");
+                    } catch (insertErr) {
+                        console.error("Failed to save to login table after signup", insertErr);
+                        // Auth succeeded but logging failed. Log out to be safe or warn user.
+                        showToast("Account created but profile update failed.", "error");
+                    }
+                }
             }
         });
 
